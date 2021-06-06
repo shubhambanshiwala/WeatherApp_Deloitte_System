@@ -1,0 +1,56 @@
+#%RAML 1.0
+title: Test
+version: v1
+
+types:
+  Country: !include ../Datatypes/Country.raml
+  Weather: !include ../Datatypes/Weather.raml
+  CustomErrorMessage: !include ../Datatypes/CustomErrorMessage.raml
+  
+/globalweather:
+ /citiesByCountry:
+   get:
+    queryParameters: 
+      country:
+        description: country 
+        type: string
+        required: true
+
+    responses: 
+      200:
+        body:
+          application/json:
+            type: Country[]
+      404:
+        body:
+          application/json:
+            type: CustomErrorMessage
+      406:
+        body:
+          application/json:
+            type: CustomErrorMessage
+  
+ /weather:
+   get:
+    queryParameters: 
+      country:
+        description: country 
+        type: string
+        required: true
+      city:
+        description: place of the country
+        type: string
+        required: true
+    responses: 
+      200:
+        body:
+          application/json:
+            type: Weather
+      404:
+        body:
+          application/json:
+            type: CustomErrorMessage
+      406:
+        body:
+          application/json:
+            type: CustomErrorMessage

@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="dad27f1d-df2f-460b-a7b2-e844c77fdde6" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<wsc:config name="Web_Service_Consumer_Config" doc:name="Web Service Consumer Config" doc:id="e53c517b-b09b-4e59-ae7a-ff0a771df3f4" >
+		<wsc:connection wsdlLocation="http://localhost:8888/GlobalWeather?WSDL" port="GlobalWeatherSoap" address="http://localhost:8888/GlobalWeather" service="GlobalWeather"/>
+	</wsc:config>
+	<flow name="weatherApp_SubFlow" doc:id="a994fb92-cd8b-41cf-9ca2-8688aaeb094b" >
+		<set-variable value="#[attributes.queryParams.country]" doc:name="Set Variable" doc:id="16625f42-d5c9-49f9-95bb-d8ba01b8b170" variableName="countryName"/>
+		<ee:transform doc:name="Transform Message" doc:id="f8e2a0fe-2a50-4bab-8bac-9614275d1987" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns web http://www.webserviceX.NET
+
+---
+web#GetCitiesByCountry:{
+	
+	web#CountryName:vars.countryName
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="Consume" doc:id="679c1f95-e725-41a9-bf8c-1b3e3da36795" config-ref="Web_Service_Consumer_Config" operation="GetCitiesByCountry">
+			<wsc:message-customizations forceXMLProlog="true" />
+		</wsc:consume>
+		<ee:transform doc:name="Transform Message" doc:id="97b9d77a-6874-47e1-8933-f4f739ccde35" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+---
+payload.body
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="9f8123a4-2bf5-4e46-92b5-4efdd70e8759" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+---
+read((((payload.^raw as String) replace '&lt;' with '<') replace '&gt;' with '>') , "application/xml")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="6f634cb2-7d29-4586-a691-c722487e14e9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+CountryResponse: read(payload.GetCitiesByCountryResponse, "application/xml").NewDataSet.*Table]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="121596c2-74e8-42b7-acd4-4a8901ea70d6" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3217a77e-8e4b-4a5d-a8a1-f035c753c59a" >
+				<ee:transform doc:name="Transform Message" doc:id="5070c7b4-822e-44cf-8166-9d49ecbef2a4" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	
+	message: error.errorType.asString, 
+	description: error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="weatherApp_getWeatherByCountryAndCity" doc:id="f2a82a45-398a-4a86-90bd-fe00fa36f7d8" >
+		<ee:transform doc:name="Transform Message" doc:id="19b100ab-70f6-4fe9-9f6c-70fa0c3c2ca6" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns web http://www.webserviceX.NET
+
+---
+web#GetWeather:{
+	
+	web#CityName: attributes.queryParams.city,
+	web#CountryName:attributes.queryParams.country
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="Consume" doc:id="e6b477ae-681c-4899-872a-38664339d093" config-ref="Web_Service_Consumer_Config" operation="GetWeather"/>
+		<ee:transform doc:name="Transform Message" doc:id="b38bd54a-a9f4-44ff-bbd6-140239dca925" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+---
+payload.body
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="e27a935e-6972-4a09-b97f-1e702f144e0a">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+---
+read((((((payload.^raw as String) replace '&lt;' with '<') replace '&gt;' with '>') replace '&amp;lt;' with '<') replace '&amp;gt;' with '>') , "application/xml")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="0a6db5a4-aa0d-488b-b072-1aac7d3e64bd">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+
+
+WeatherResponse:
+{
+
+Location: read(payload.GetWeatherResponse, "application/xml").NewDataSet.Location,
+Time: read(payload.GetWeatherResponse, "application/xml").NewDataSet.Time,
+Wind: read(payload.GetWeatherResponse, "application/xml").NewDataSet.Wind,
+Visibility: read(payload.GetWeatherResponse, "application/xml").NewDataSet.Visibility,
+SkyConditions: read(payload.GetWeatherResponse, "application/xml").NewDataSet.SkyConditions,
+Temperature: read(payload.GetWeatherResponse, "application/xml").NewDataSet.Temperature,
+DewPoint: read(payload.GetWeatherResponse, "application/xml").NewDataSet.DewPoint,
+RelativeHumidity: read(payload.GetWeatherResponse, "application/xml").NewDataSet.RelativeHumidity,
+Status: read(payload.GetWeatherResponse, "application/xml").NewDataSet.Status,
+
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="2f4d7c22-ccee-4a2f-ac76-2cec68923af0" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="4cc6b055-a0a6-4df2-bec6-7f68d7b33271" >
+				<ee:transform doc:name="Transform Message" doc:id="57181dc6-b1b5-4bf7-b421-0b93e7f593b8" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	
+	message: error.errorType.asString, 
+	description: error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
